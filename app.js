@@ -1,4 +1,3 @@
-
 /**
  * Module dependencies.
  */
@@ -11,7 +10,7 @@ var mongoose = require('mongoose');
 var passport = require('passport');
 
 // require('./config/db'); // TODO [DB] : Connect to database
-// require('./config/passport'); // TODO [FB] : Passport configuration
+require('./config/passport'); // TODO [FB] : Passport configuration
 
 var app = express();
 // var Vote = mongoose.model('Vote'); // TODO [DB] : Get Vote model
@@ -25,7 +24,7 @@ app.use(express.logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded());
 app.use(express.methodOverride());
-app.use(express.cookieParser(process.env.COOKIE_SECRET));
+app.use(express.cookieParser(process.env.COOKIE_SECRET || 'MitchTsengNatashaPanBill8124'));
 app.use(express.session());
 
 // https://github.com/jaredhanson/passport#middleware
@@ -54,34 +53,29 @@ app.post('/vote', function(req, res, next){
 
   res.redirect('/result');
 
-  /* TODO [FB] : Redirect to passport auth url! */
+  // [FB] Redirect to passport auth url!
   // Directly invoke the passport authenticate middleware.
   // Ref: http://passportjs.org/guide/authenticate/
-  //
-  // passport.authenticate('facebook')(req, res, next);
+  passport.authenticate('facebook')(req, res, next);
 });
 
-// TODO [FB]: Facebook callback handler
+// [FB] Facebook callback handler
 // Ref: https://github.com/jaredhanson/passport-facebook/blob/master/examples/login/app.js#L100
-//
-// app.get('/fbcb', passport.authenticate('facebook', {
-//   successRedirect:'/result',
-//   failureRedirect: '/'
-// }));
+app.get('/fbcb', passport.authenticate('facebook', {
+  successRedirect:'/result',
+  failureRedirect: '/'
+}));
 
 app.get('/result', function(req, res){
 
   var vote = req.session.vote, // The voted item (0~6)
-      fbid = "" + Math.random();    // Facebook ID. (Fake)
-      // fbid = req.user && req.user.id; // TODO [FB]: Get user from req.user
+      fbid = req.user && req.user.id; // [FB] Get user from req.user
 
   // Delete the stored session.
-  //
   delete req.session.vote;
   req.logout(); // Delete req.user
 
   // Redirect the malicious (not voted or not logged in) requests.
-  //
   if( vote === undefined || fbid === undefined ){
     req.flash('info', "請先在此處投票。");
     return res.redirect('/');
