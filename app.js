@@ -86,7 +86,12 @@ app.get('/result', function(req, res){
     Vote.find({fbid: fbid}, function(err, votes, count){
         if (votes.length > 0){
             console.log('updateVote ' + vote);
-            req.flash('info', "你已經投過票囉！");
+            if (votes[0].vote === vote){
+                req.flash('info', "你已經投過票囉！");
+            }
+            else {
+                req.flash('info', "你的投票已更新！");
+            }
             Vote.update({fbid: fbid}, {vote: vote}, function(err, user){
                 return computeResult(res, req);
             });
