@@ -69,58 +69,59 @@ app.get('/fbcb', passport.authenticate('facebook', {
 }));
 
 app.get('/result', function(req, res){
+    var vote = req.session.vote, // The voted item (0~6)
+        fbid = req.user && req.user.id; // [FB] Get user from req.user
 
-  var vote = req.session.vote, // The voted item (0~6)
-      fbid = req.user && req.user.id; // [FB] Get user from req.user
+    // Delete the stored session.
+    delete req.session.vote;
+    req.logout(); // Delete req.user
 
-  // Delete the stored session.
-  delete req.session.vote;
-  req.logout(); // Delete req.user
+    // Redirect the malicious (not voted or not logged in) requests.
+    if (vote === undefined || fbid === undefined){
+        req.flash('info', "請先在此處投票。");
+        return res.redirect('/');
+    }
 
-  // Redirect the malicious (not voted or not logged in) requests.
-  if( vote === undefined || fbid === undefined ){
-    req.flash('info', "請先在此處投票。");
-    return res.redirect('/');
-  }
-
-   var vote = new Vote({vote: vote, fbid: fbid});
-   vote.save(function(err, newVote){
-     if( err ){
-       req.flash('info', "你已經投過票囉！");
-       //res.render('index', {messages: '<a href="/">你已經投過票囉！</a>'});
-     }
-     var voteresult=[];
-     var i =0;
-     var total = 0;
-     computeresult(i, voteresult, total, res, req);
+    var newVote = new Vote({vote: vote, fbid: fbid});
+    Vote.find({fbid: fbid}, function(err, votes, count){
+        if (votes.length > 0){
+            console.log('updateVote ' + vote);
+            req.flash('info', "你已經投過票囉！");
+            Vote.update({fbid: fbid}, {vote: vote}, function(err, user){
+                return computeResult(res, req);
+            });
+        }
+        else {
+            console.log('newVote ' + vote);
+            newVote.save(function(err, newVote){
+                return computeResult(res, req);
+            });
+        }
     });
-  //
-       
 });
 
-function computeresult(i, voteresult, total, res, req){
-  Vote.find({vote: i},function(err, votes){
-    voteresult[i] = votes.length;
-    total = total + votes.length;
-    i++;
-    if(i < 7)
-    {
-      computeresult(i, voteresult, total, res, req);
-    }
-    else{
-     console.log(voteresult);
-     var result=[];
-     for(var j = 0; j < 7; j++)
-     {
-        result[j] = 100*voteresult[j]/total;
-     }
-     console.log(result);
-     var messages = req.flash('info');
-     res.render('result', {
-        votes: result, messages: messages // Percentages
-     });
-    }
-  });
+function computeResult(res, req){
+    Vote.aggregate({
+        $group: {
+            _id: "$vote",
+            votesPerOption: { $sum : 1 },
+        }
+    }, function (err, result) {
+        if (err) return handleError(err);
+        var total = 0;
+        var voteResult = [0, 0, 0, 0, 0, 0, 0];
+        result.forEach(function(element, index, array){
+            voteResult[+element._id] = element.votesPerOption;
+            total += element.votesPerOption;
+        });
+        voteResult.forEach(function(element, index, array){
+            voteResult[index] = 100.0 * voteResult[index] / total;
+        });
+        var messages = req.flash('info');
+        res.render('result', {
+            votes: voteResult, messages: messages // Percentages
+        });
+    });
 }
 
 
