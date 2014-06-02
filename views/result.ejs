@@ -1,5 +1,10 @@
 <% include _header.ejs %>
 <form class="poll-form">
+  <% if (messages.length) { %>
+    <p class="form-instruction flash-message">
+      <%- messages.join('<br>') %>
+    </p>
+  <% } %>
   <p class="form-instruction">
     統計結果
   </p>

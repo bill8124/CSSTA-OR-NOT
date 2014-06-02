@@ -1,7 +1,6 @@
 /**
  * Module dependencies.
  */
-
 var express = require('express');
 var http = require('http');
 var path = require('path');
@@ -9,11 +8,12 @@ var flash = require('connect-flash');
 var mongoose = require('mongoose');
 var passport = require('passport');
 
-// require('./config/db'); // TODO [DB] : Connect to database
 require('./config/passport'); // TODO [FB] : Passport configuration
+require('./config/db'); // TODO [DB] : Connect to database
+
 
 var app = express();
-// var Vote = mongoose.model('Vote'); // TODO [DB] : Get Vote model
+var Vote = mongoose.model('Vote'); // TODO [DB] : Get Vote model
 
 // all environments
 app.set('port', process.env.PORT || 3000);
@@ -51,6 +51,8 @@ app.post('/vote', function(req, res, next){
   // Stores the voted option (conveted to number) into session
   req.session.vote = +req.body.vote;
 
+
+
   res.redirect('/result');
 
   // [FB] Redirect to passport auth url!
@@ -81,29 +83,46 @@ app.get('/result', function(req, res){
     return res.redirect('/');
   }
 
-  /*
-    TODO [DB] : Replace the mock results with real ones.
-    Please record the user vote into database.
-    If the user already exists in the database, redirect her/him to '/'
-  */
-
+   var vote = new Vote({vote: vote, fbid: fbid});
+   vote.save(function(err, newVote){
+     if( err ){
+       req.flash('info', "你已經投過票囉！");
+       //res.render('index', {messages: '<a href="/">你已經投過票囉！</a>'});
+     }
+     var voteresult=[];
+     var i =0;
+     var total = 0;
+     computeresult(i, voteresult, total, res, req);
+    });
   //
-  // var vote = new Vote({vote: vote, fbid: fbid});
-  // vote.save(function(err, newVote){
-  //   if( err ){
-  //     req.flash('info', "你已經投過票囉！");
-  //     return res.redirect('/');
-  //   }
-  //
-  //   ... ...
-  //
-       res.render('result', {
-         votes: [18.1, 12.5, 42.44445, 21.3, 1.3, 2.5, 1.85555] // Percentages
-       });
-  //
-  // });
-
+       
 });
+
+function computeresult(i, voteresult, total, res, req){
+  Vote.find({vote: i},function(err, votes){
+    voteresult[i] = votes.length;
+    total = total + votes.length;
+    i++;
+    if(i < 7)
+    {
+      computeresult(i, voteresult, total, res, req);
+    }
+    else{
+     console.log(voteresult);
+     var result=[];
+     for(var j = 0; j < 7; j++)
+     {
+        result[j] = 100*voteresult[j]/total;
+     }
+     console.log(result);
+     var messages = req.flash('info');
+     res.render('result', {
+        votes: result, messages: messages // Percentages
+     });
+    }
+  });
+}
+
 
 http.createServer(app).listen(app.get('port'), function(){
   console.log('Express server listening on port ' + app.get('port'));
