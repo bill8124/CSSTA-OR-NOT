@@ -24,7 +24,7 @@ app.use(express.logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded());
 app.use(express.methodOverride());
-app.use(express.cookieParser(process.env.COOKIE_SECRET || 'MitchTsengNatashaPanBill8124'));
+app.use(express.cookieParser(process.env.COOKIE_SECRET));
 app.use(express.session());
 
 // https://github.com/jaredhanson/passport#middleware
